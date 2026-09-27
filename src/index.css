@@ -16,7 +16,8 @@ body {
     BlinkMacSystemFont,
     "Segoe UI",
     sans-serif;
-  background: #f6f7f2;
+  background: linear-gradient(135deg, #d8f3dd 0%, #c4ebce 55%, #e2f4e5 100%);
+  color: #102a1c;
 }
 
 button,

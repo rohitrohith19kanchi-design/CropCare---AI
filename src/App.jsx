@@ -2,482 +2,220 @@ import { useState } from "react";
 import {
   Upload,
   Leaf,
+  ArrowRight,
   ShieldCheck,
   ScanSearch,
-  LoaderCircle,
-  CheckCircle
+  X,
+  RefreshCw,
 } from "lucide-react";
 
 import "./App.css";
 
-
 function App() {
-
   const [image, setImage] = useState(null);
-
-  const [crop, setCrop] = useState("");
-  const [location, setLocation] = useState("");
-  const [humidity, setHumidity] = useState("");
-  const [rainfall, setRainfall] = useState("");
-
-
-  const [status, setStatus] = useState("");
-  const [jobId, setJobId] = useState("");
-  const [result, setResult] = useState(null);
-
-
+  const [imageDetails, setImageDetails] = useState(null);
 
   const handleImageUpload = (event) => {
-
     const file = event.target.files[0];
 
-    if(file){
+    if (file) {
       setImage(URL.createObjectURL(file));
-    }
 
-  };
-
-
-
-
-  const startDiagnosis = () => {
-
-
-    const id =
-      "CC-" + Math.floor(Math.random()*90000 + 10000);
-
-
-    setJobId(id);
-
-    setResult(null);
-
-
-    setStatus("Creating diagnostic job...");
-
-
-
-    setTimeout(()=>{
-
-      setStatus("Analyzing crop image...");
-
-    },1500);
-
-
-
-    setTimeout(()=>{
-
-      setStatus("Checking environmental conditions...");
-
-    },3000);
-
-
-
-    setTimeout(()=>{
-
-      setStatus("Generating advisory report...");
-
-    },4500);
-
-
-
-    setTimeout(()=>{
-
-      setStatus("completed");
-
-
-      setResult({
-
-        disease:"Early Leaf Blight",
-
-        confidence:"94.2%",
-
-        advice:
-        "Conditions indicate fungal risk. Monitor humidity and apply preventive crop management."
-
+      setImageDetails({
+        name: file.name,
+        size: (file.size / 1024 / 1024).toFixed(2),
       });
-
-
-    },6000);
-
-
-
+    }
   };
 
 
+  const removeImage = () => {
+    setImage(null);
+    setImageDetails(null);
+  };
 
 
+  return (
+    <div className="app">
 
-return (
+      <nav className="navbar">
+        <div className="brand">
+          <Leaf size={24}/>
+          CropCare AI
+        </div>
 
-<div className="app">
+        <div className="status">
+          Diagnostic engine online
+        </div>
+      </nav>
 
 
-<nav className="navbar">
+      <main className="hero">
 
-<div className="logo">
+        <section className="hero-text">
 
-<Leaf size={28}/>
+          <div className="tag">
+            <ScanSearch size={16}/>
+            AI-POWERED CROP HEALTH
+          </div>
 
-CropCare AI
 
-</div>
+          <h1>
+            Understand
+            <br/>
+            crop's
+            <br/>
+            health better.
+          </h1>
 
 
-<button className="nav-btn">
+          <p>
+            AI-powered crop diagnosis using plant images and environmental context.
+          </p>
 
-Diagnostic engine online
 
-</button>
+          <div className="features">
 
+            <span>
+              <ShieldCheck size={18}/>
+              Image-based analysis
+            </span>
 
-</nav>
+            <span>
+              <ShieldCheck size={18}/>
+              Clear explanations
+            </span>
 
+          </div>
 
 
+        </section>
 
 
-<main className="hero">
 
+        <section className="upload-card">
 
 
-<section className="hero-text">
+          {!image ? (
 
+            <label className="upload-box">
 
-<p className="tag">
+              <Upload size={32}/>
 
-AI POWERED CROP HEALTH
+              <h2>
+                Upload a plant image
+              </h2>
 
-</p>
 
+              <p>
+                Use a clear photo showing the affected leaf,
+                stem, fruit, or other visible symptoms.
+              </p>
 
 
-<h1>
+              <span>
+                Choose image → JPG, PNG or WEBP · Max 10 MB
+              </span>
 
-Understand
-<br/>
-your crop's
-<br/>
-health better.
 
-</h1>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleImageUpload}
+              />
 
+            </label>
 
 
+          ) : (
 
-<p className="description">
 
-AI-powered crop diagnosis using plant images
-and environmental context.
+            <div className="preview-box">
 
-</p>
 
+              <img
+                src={image}
+                alt="plant preview"
+              />
 
 
-<div className="features">
+              <div className="image-info">
 
+                <h3>
+                  Selected Image
+                </h3>
 
-<div>
 
-<ShieldCheck size={22}/>
+                <p>
+                  🌿 {imageDetails.name}
+                </p>
 
-Safer advisory
 
-</div>
+                <p>
+                  Size: {imageDetails.size} MB
+                </p>
 
 
+                <p className="ready">
+                  ✓ Ready for AI analysis
+                </p>
 
-<div>
 
-<ScanSearch size={22}/>
+              </div>
 
-AI analysis
 
-</div>
+              <div className="actions">
 
+                <label className="replace-btn">
 
-</div>
+                  <RefreshCw size={16}/>
+                  Replace
 
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                  />
 
+                </label>
 
-</section>
 
+                <button
+                  className="remove-btn"
+                  onClick={removeImage}
+                >
 
+                  <X size={16}/>
+                  Remove
 
+                </button>
 
 
+              </div>
 
 
-<section className="upload-card">
+              <button className="analyze-btn">
 
+                Analyze Image
+                <ArrowRight size={18}/>
 
-<div className="upload-box">
+              </button>
 
 
+            </div>
 
-<Upload size={40}/>
 
+          )}
 
+        </section>
 
-<h2>
-Crop Diagnosis
-</h2>
 
+      </main>
 
-<p>
-Image + environmental intelligence
-</p>
 
-
-
-
-<label className="upload-btn">
-
-Choose Image
-
-
-<input
-
-type="file"
-
-accept="image/*"
-
-onChange={handleImageUpload}
-
-/>
-
-
-</label>
-
-
-
-
-
-{image && (
-
-<img
-
-src={image}
-
-className="preview"
-
-alt="crop"
-
-/>
-
-)}
-
-
-
-
-
-<div className="form">
-
-
-
-<input
-
-placeholder="Crop type"
-
-value={crop}
-
-onChange={(e)=>setCrop(e.target.value)}
-
-/>
-
-
-
-
-<input
-
-placeholder="Location"
-
-value={location}
-
-onChange={(e)=>setLocation(e.target.value)}
-
-/>
-
-
-
-
-<input
-
-placeholder="Humidity %"
-
-value={humidity}
-
-onChange={(e)=>setHumidity(e.target.value)}
-
-/>
-
-
-
-
-<select
-
-value={rainfall}
-
-onChange={(e)=>setRainfall(e.target.value)}
-
->
-
-
-<option value="">
-
-Recent rainfall
-
-</option>
-
-
-<option>
-Low
-</option>
-
-
-<option>
-Medium
-</option>
-
-
-<option>
-High
-</option>
-
-
-</select>
-
-
-
-
-
-<button
-
-className="diagnose-btn"
-
-onClick={startDiagnosis}
-
->
-
-Start Diagnosis →
-
-</button>
-
-
-
-
-</div>
-
-
-
-
-
-
-
-{jobId && (
-
-<div className="status-card">
-
-
-<h3>
-
-Job ID: {jobId}
-
-</h3>
-
-
-<p>
-
-{status !== "completed" &&
-
-<LoaderCircle className="spin"/>
-
+    </div>
+  );
 }
-
-
-{status}
-
-</p>
-
-
-
-</div>
-
-)}
-
-
-
-
-
-
-
-{result && (
-
-<div className="result-card">
-
-
-<CheckCircle size={30}/>
-
-
-<h2>
-
-Diagnosis Complete
-
-</h2>
-
-
-
-<p>
-
-Disease:
-<strong> {result.disease}</strong>
-
-</p>
-
-
-
-<p>
-
-Confidence:
-<strong> {result.confidence}</strong>
-
-</p>
-
-
-
-<p>
-
-{result.advice}
-
-</p>
-
-
-
-</div>
-
-)}
-
-
-
-
-
-</div>
-
-
-</section>
-
-
-
-</main>
-
-
-
-</div>
-
-);
-
-
-}
-
 
 
 export default App;
