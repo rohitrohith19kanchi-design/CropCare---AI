@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { Router } from "express";
+import { uploadContractsByKey } from "../services/uploadContracts.js";
 
 const router = Router();
 const jobs = new Map();
@@ -20,14 +21,14 @@ function makeDemoResult(telemetry = {}) {
       "Inspect older leaves and nearby plants for similar patterns.",
       "Check whether recent watering or rain has left foliage damp.",
     ],
-    explanation: "Early blight may show as brown, target-like spots on older leaves. This example was not identified from the uploaded photo.",
+    explanation: "Early blight may show as brown, target-like spots on older leaves. This sample was not analyzed from the selected image.",
   };
 }
 
 router.post("/", (request, response) => {
-  const { imageName, telemetry } = request.body ?? {};
-  if (typeof imageName !== "string" || !imageName.trim() || imageName.length > 255) {
-    response.status(400).json({ error: "imageName is required and must be 255 characters or fewer." });
+  const { objectKey, telemetry } = request.body ?? {};
+  if (typeof objectKey !== "string" || !uploadContractsByKey.has(objectKey)) {
+    response.status(400).json({ error: "A valid objectKey from an upload contract is required." });
     return;
   }
 
@@ -48,7 +49,7 @@ router.post("/", (request, response) => {
   }
 
   const jobId = randomUUID();
-  const job = { jobId, imageName: imageName.trim(), status: "pending", result: null };
+  const job = { jobId, objectKey, status: "pending", result: null };
   jobs.set(jobId, job);
 
   setTimeout(() => {

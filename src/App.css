@@ -146,6 +146,17 @@ h1 {
   font-weight: 600;
 }
 
+.storage-notice {
+  margin: 10px 0 0;
+  padding: 10px 12px;
+  border: 1px solid #eadfbd;
+  border-radius: 10px;
+  background: #fffaf0;
+  color: #735a22;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
 
 .actions {
   display: flex;

@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 
 import "./App.css";
+import { createDiagnosisJob } from "./api/diagnosis.js";
 
 const stages = ["Uploading", "Queued", "Processing", "Diagnosis Complete"];
 const maxImageSize = 10 * 1024 * 1024;
@@ -30,6 +31,7 @@ function App() {
   const [uploadError, setUploadError] = useState("");
   const [diagnosisError, setDiagnosisError] = useState("");
   const [diagnosisResult, setDiagnosisResult] = useState(null);
+  const [storageNotice, setStorageNotice] = useState("");
   const requestController = useRef(null);
 
   const cancelDiagnosisRequest = () => {
@@ -59,9 +61,12 @@ function App() {
     setDiagnosisStage(null);
     setDiagnosisError("");
     setDiagnosisResult(null);
+    setStorageNotice("");
     setUploadError("");
     setImageDetails({
       name: file.name,
+      type: file.type,
+      byteSize: file.size,
       size: (file.size / 1024 / 1024).toFixed(2),
     });
   };
@@ -76,6 +81,7 @@ function App() {
     setUploadError("");
     setDiagnosisError("");
     setDiagnosisResult(null);
+    setStorageNotice("");
   };
 
   const startAnalysis = async () => {
@@ -85,20 +91,17 @@ function App() {
     setDiagnosisStage("Uploading");
     setDiagnosisError("");
     setDiagnosisResult(null);
+    setStorageNotice("");
 
     try {
-      const createResponse = await fetch("/api/v1/diagnose", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          imageName: imageDetails.name,
-          telemetry: { temperature: 24, humidity: 78 },
-        }),
+      const { job: createdJob } = await createDiagnosisJob({
+        fileName: imageDetails.name,
+        fileType: imageDetails.type,
+        fileSize: imageDetails.byteSize,
+        telemetry: { temperature: 24, humidity: 78 },
         signal: controller.signal,
+        onUploadContract: (contract) => setStorageNotice(contract.message || "S3 upload is not configured. No image bytes have been uploaded or stored."),
       });
-      const createdJob = await createResponse.json();
-      if (!createResponse.ok) throw new Error(createdJob.error || "Could not start the diagnosis job.");
-      if (createdJob.status !== "pending" || !createdJob.jobId) throw new Error("The diagnosis service returned an invalid job.");
 
       setDiagnosisStage("Queued");
       while (!controller.signal.aborted) {
@@ -259,6 +262,7 @@ function App() {
                 <p className="ready">
                   ✓ Ready to run demo analysis
                 </p>
+                {storageNotice && <p className="storage-notice" role="status">{storageNotice}</p>}
 
 
               </div>
