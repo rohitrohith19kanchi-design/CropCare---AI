@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useRef, useState } from "react";
 import {
   Upload,
   Leaf,
@@ -28,13 +28,14 @@ function App() {
   const [imageDetails, setImageDetails] = useState(null);
   const [diagnosisStage, setDiagnosisStage] = useState(null);
   const [uploadError, setUploadError] = useState("");
+  const [diagnosisError, setDiagnosisError] = useState("");
+  const [diagnosisResult, setDiagnosisResult] = useState(null);
+  const requestController = useRef(null);
 
-  useEffect(() => {
-    if (!diagnosisStage || diagnosisStage === "Diagnosis Complete") return undefined;
-    const nextStage = stages[stages.indexOf(diagnosisStage) + 1];
-    const timer = window.setTimeout(() => setDiagnosisStage(nextStage), 1100);
-    return () => window.clearTimeout(timer);
-  }, [diagnosisStage]);
+  const cancelDiagnosisRequest = () => {
+    requestController.current?.abort();
+    requestController.current = null;
+  };
 
   const handleImageUpload = (event) => {
     const file = event.target.files[0];
@@ -52,9 +53,12 @@ function App() {
       return;
     }
 
+    cancelDiagnosisRequest();
     if (image?.startsWith("blob:")) URL.revokeObjectURL(image);
     setImage(URL.createObjectURL(file));
     setDiagnosisStage(null);
+    setDiagnosisError("");
+    setDiagnosisResult(null);
     setUploadError("");
     setImageDetails({
       name: file.name,
@@ -64,14 +68,70 @@ function App() {
 
 
   const removeImage = () => {
+    cancelDiagnosisRequest();
     if (image?.startsWith("blob:")) URL.revokeObjectURL(image);
     setImage(null);
     setImageDetails(null);
     setDiagnosisStage(null);
     setUploadError("");
+    setDiagnosisError("");
+    setDiagnosisResult(null);
   };
 
-  const startAnalysis = () => setDiagnosisStage("Uploading");
+  const startAnalysis = async () => {
+    cancelDiagnosisRequest();
+    const controller = new AbortController();
+    requestController.current = controller;
+    setDiagnosisStage("Uploading");
+    setDiagnosisError("");
+    setDiagnosisResult(null);
+
+    try {
+      const createResponse = await fetch("/api/v1/diagnose", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          imageName: imageDetails.name,
+          telemetry: { temperature: 24, humidity: 78 },
+        }),
+        signal: controller.signal,
+      });
+      const createdJob = await createResponse.json();
+      if (!createResponse.ok) throw new Error(createdJob.error || "Could not start the diagnosis job.");
+      if (createdJob.status !== "pending" || !createdJob.jobId) throw new Error("The diagnosis service returned an invalid job.");
+
+      setDiagnosisStage("Queued");
+      while (!controller.signal.aborted) {
+        const jobResponse = await fetch(`/api/v1/diagnose/${encodeURIComponent(createdJob.jobId)}`, {
+          signal: controller.signal,
+        });
+        const job = await jobResponse.json();
+        if (!jobResponse.ok) throw new Error(job.error || "Could not retrieve the diagnosis status.");
+
+        if (job.status === "pending") {
+          setDiagnosisStage("Queued");
+        } else if (job.status === "processing") {
+          setDiagnosisStage("Processing");
+        } else if (job.status === "completed" && job.result) {
+          setDiagnosisResult(job.result);
+          setDiagnosisStage("Diagnosis Complete");
+          requestController.current = null;
+          return;
+        } else {
+          throw new Error("The diagnosis service returned an unknown job status.");
+        }
+
+        await new Promise((resolve) => window.setTimeout(resolve, 500));
+      }
+    } catch (error) {
+      if (error.name !== "AbortError") {
+        setDiagnosisStage(null);
+        setDiagnosisError(error.message || "The diagnosis service is unavailable. Please try again.");
+      }
+    } finally {
+      if (requestController.current === controller) requestController.current = null;
+    }
+  };
   const isAnalyzing = diagnosisStage && diagnosisStage !== "Diagnosis Complete";
 
 
@@ -85,7 +145,7 @@ function App() {
         </div>
 
         <div className="status">
-          Demo diagnosis mode
+          Local API demo
         </div>
       </nav>
 
@@ -234,6 +294,7 @@ function App() {
               </div>
 
               {uploadError && <p className="upload-error" role="alert">{uploadError}</p>}
+              {diagnosisError && <p className="upload-error" role="alert">{diagnosisError}</p>}
 
 
               <button className="analyze-btn" onClick={startAnalysis} disabled={Boolean(isAnalyzing)}>
@@ -263,23 +324,23 @@ function App() {
                 </div>
               )}
 
-              {diagnosisStage === "Diagnosis Complete" && (
+              {diagnosisStage === "Diagnosis Complete" && diagnosisResult && (
                 <section className="diagnosis-result" aria-live="polite">
-                  <div className="demo-banner"><AlertTriangle size={15}/><span>DEMO RESULT · Sample only</span></div>
-                  <div className="result-title"><div className="result-icon"><Sprout size={20}/></div><div><span>Possible disease</span><h3>Early blight</h3></div></div>
-                  <div className="confidence-row"><span>Mock confidence</span><strong>87%</strong></div>
-                  <div className="confidence-track"><span/></div>
-                  <p className="result-copy">Early blight may show as brown, target-like spots on older leaves. This example is fixed demo content and was not identified from the uploaded photo.</p>
+                  <div className="demo-banner"><AlertTriangle size={15}/><span>{diagnosisResult.isDemo ? "DEMO RESULT · Sample only" : "DIAGNOSIS RESULT"}</span></div>
+                  <div className="result-title"><div className="result-icon"><Sprout size={20}/></div><div><span>Possible disease</span><h3>{diagnosisResult.possibleDisease}</h3></div></div>
+                  <div className="confidence-row"><span>{diagnosisResult.isDemo ? "Mock confidence" : "Confidence"}</span><strong>{typeof diagnosisResult.confidence === "number" ? `${diagnosisResult.confidence}%` : diagnosisResult.confidence}</strong></div>
+                  <div className="confidence-track"><span style={{ width: `${Math.max(0, Math.min(100, Number(diagnosisResult.confidence) || 0))}%` }}/></div>
+                  <p className="result-copy">{diagnosisResult.explanation}</p>
                   <div className="context-panel">
-                    <strong>Simulated environmental context</strong>
+                    <strong>{diagnosisResult.isDemo ? "Simulated environmental context" : "Environmental context"}</strong>
                     <div className="context-metrics">
-                      <div className="context-metric"><Thermometer size={16}/><span>Temperature</span><b>24°C</b></div>
-                      <div className="context-metric"><Droplets size={16}/><span>Humidity</span><b>78%</b></div>
+                      <div className="context-metric"><Thermometer size={16}/><span>Temperature</span><b>{diagnosisResult.environment.temperature}°C</b></div>
+                      <div className="context-metric"><Droplets size={16}/><span>Humidity</span><b>{diagnosisResult.environment.humidity}%</b></div>
                     </div>
-                    <p>Example conditions only · no location or weather data used</p>
+                    {diagnosisResult.isDemo && <p>Example conditions only · no location or weather data used</p>}
                   </div>
-                  <div className="result-advice"><div className="advice-title"><ClipboardCheck size={16}/><strong>Recommended next checks</strong></div><ul><li>Compare leaf spots with a trusted local crop guide or extension service.</li><li>Inspect older leaves and nearby plants for similar patterns.</li><li>Check whether recent watering or rain has left foliage damp.</li></ul></div>
-                  <p className="mock-note">Demo only: real AI inference and live environmental data are not connected. This sample is not an agronomic diagnosis.</p>
+                  <div className="result-advice"><div className="advice-title"><ClipboardCheck size={16}/><strong>Recommended next checks</strong></div><ul>{diagnosisResult.nextChecks.map((check) => <li key={check}>{check}</li>)}</ul></div>
+                  {diagnosisResult.isDemo && <p className="mock-note">Demo only: real AI inference and live environmental data are not connected. This sample is not an agronomic diagnosis.</p>}
                 </section>
               )}
 
